@@ -15,7 +15,7 @@ CORS(app)  # Enable CORS
 # Database connection setup
 db_config = {
     'server': os.getenv('DB_SERVER', 'sqldatabasedemojks.database.windows.net'),
-    'database': os.getenv('DB_NAME', 'JobBot'),
+    'database': os.getenv('DB_NAME', 'JobBot1'),
     'username': os.getenv('DB_USERNAME', 'jalaj'),
     'password': os.getenv('DB_PASSWORD', 'Conor2260$'),
     'driver': '{ODBC Driver 17 for SQL Server}'
