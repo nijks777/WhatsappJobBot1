@@ -12,12 +12,17 @@ CORS(app)  # Enable CORS
 
 # Database connection setup
 
+# Database connection setup
 db_config = {
-    'server': 'LAPTOP-1CTMURUN\\SQLEXPRESS',
-    'database': 'JobBot',
+    'server': os.getenv('DB_SERVER', 'sqldatabasedemojks.database.windows.net'),
+    'database': os.getenv('DB_NAME', 'JobBot'),
+    'username': os.getenv('DB_USERNAME', 'jalaj'),
+    'password': os.getenv('DB_PASSWORD', 'Conor2260$'),
     'driver': '{ODBC Driver 17 for SQL Server}'
 }
-connection_string = f"DRIVER={db_config['driver']};SERVER={db_config['server']};DATABASE={db_config['database']};Trusted_Connection=yes;"
+
+# Build connection string for Azure SQL
+connection_string = f"DRIVER={db_config['driver']};SERVER={db_config['server']};DATABASE={db_config['database']};UID={db_config['username']};PWD={db_config['password']};"
 
 import os
 from dotenv import load_dotenv
@@ -874,4 +879,6 @@ def send_location_question(candidate_id, name, mobile):
     return response.status_code == 200
 
 if __name__ == '__main__':
-    app.run(debug=True,port=5001)
+    # Use PORT environment variable if available (for Azure)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port)
