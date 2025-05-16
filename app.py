@@ -14,9 +14,9 @@ CORS(app)  # Enable CORS
 
 # Database connection setup
 db_config = {
-    'server': os.getenv('DB_SERVER', 'sqldatabasedemojks.database.windows.net'),
+    'server': os.getenv('DB_SERVER', 'jobbot.database.windows.net'),
     'database': os.getenv('DB_NAME', 'JobBot1'),
-    'username': os.getenv('DB_USERNAME', 'jalaj'),
+    'username': os.getenv('DB_USERNAME', 'WHATSAPPJOBBOT'),
     'password': os.getenv('DB_PASSWORD', 'Conor2260$'),
     'driver': '{ODBC Driver 17 for SQL Server}'
 }
@@ -73,6 +73,8 @@ def add_candidate():
         name = data.get('name')
         mobile = data.get('mobile')
         job_description = data.get('jobDescription')
+        shortlistId = data.get('shortlistId')
+        userId = data.get('userId')
         
         if not name or not mobile:
             return jsonify({"error": "Name and mobile are required"}), 400
@@ -81,7 +83,10 @@ def add_candidate():
         cursor = conn.cursor()
         
         # Check if a candidate with this mobile number already exists
-        cursor.execute("SELECT CandidateID FROM Candidates WHERE Mobile = ?", (mobile,))
+        cursor.execute(
+            "SELECT CandidateID FROM Candidates WHERE Mobile = ? AND ShortlistID = ? AND UserID = ?",
+            (mobile, shortlistId, userId)
+        )
         existing_candidate = cursor.fetchone()
         
         if existing_candidate:
@@ -96,9 +101,9 @@ def add_candidate():
         else:
             # Insert a new candidate
             cursor.execute("""
-                INSERT INTO Candidates (Name, Mobile, JobDescription)
-                VALUES (?, ?, ?)
-            """, (name, mobile, job_description))
+                INSERT INTO Candidates (Name, Mobile, JobDescription, ShortlistId, UserId)
+                VALUES (?, ?, ?, ?, ?)
+            """, (name, mobile, job_description, shortlistId, userId))
             # Get the newly inserted candidate ID
             cursor.execute("SELECT @@IDENTITY")
             candidate_id = cursor.fetchone()[0]
@@ -345,6 +350,8 @@ def send_individual_message():
     try:
         data = request.json
         mobile = data.get('mobile')
+        userId = data.get('userId')
+        shortlistId = data.get('shortlistId')
         
         if not mobile:
             return jsonify({"error": "Mobile number is required"}), 400
@@ -353,17 +360,16 @@ def send_individual_message():
         cursor = conn.cursor()
 
         # Fetch the specific candidate from the database based on mobile number
-        cursor.execute("SELECT CandidateID, Name, Mobile, JobDescription FROM Candidates WHERE Mobile = ?", (mobile,))
+        cursor.execute("SELECT CandidateID, Name, Mobile, JobDescription FROM Candidates WHERE Mobile = ? AND ShortlistID = ? AND UserID = ?",
+            (mobile, shortlistId, userId)
+        )
         candidate = cursor.fetchone()
 
         # If candidate exists, use their info
         if candidate:
             candidate_id, name, mobile, job_desc = candidate
         else:
-            # If candidate doesn't exist in the database, use the mobile number
-            # and generic name
-            candidate_id = 0  # Use 0 or null as ID for non-existing candidates
-            name = "Candidate"  # Generic name
+            return jsonify({"error": "Error: No candidate exist."}), 400
         
         # Prepare the WhatsApp API request with job opportunity message
         message = {
@@ -374,13 +380,13 @@ def send_individual_message():
                 "type": "button",
                 "header": {
                     "type": "text",
-                    "text": "Tech Mahindra Ltd. - Job Opportunity"
+                    "text": "Company Ltd. - Job Opportunity"
                 },
                 "body": {
                     "text": f"Dear {name},\n\n" + 
                     "Greetings from Tech Mahindra Ltd.!\n\n" +
-                    "I am Swati from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our Data Analyst job opening.\n\n" +
-                    "Job Description – Data Analyst\n" +
+                    f"I am from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our {job_desc} job opening.\n\n" +
+                    f"Job Description – {job_desc}\n" +
                     ". Collect, clean, and organize large datasets to ensure accuracy and consistency.\n" +
                     ". Analyze data to identify trends, patterns, and actionable insights to support decision-making.\n" +
                     ". Create interactive dashboards and reports using tools such as Power BI, Tableau, or Excel.\n" +
@@ -425,6 +431,8 @@ def get_candidates():
                 c.CandidateID, 
                 c.Name, 
                 c.Mobile,
+                c.ShortlistId,
+                c.UserId,
                 CASE 
                     WHEN r.ResponseDate IS NOT NULL THEN 1 
                     ELSE 0 
@@ -438,6 +446,8 @@ def get_candidates():
                 "CandidateID": row.CandidateID, 
                 "Name": row.Name, 
                 "Mobile": row.Mobile,
+                "ShortlistId": row.ShortlistId,
+                "UserId": row.UserId,
                 "MessageSent": bool(row.MessageSent)
             } 
             for row in cursor.fetchall()
@@ -447,6 +457,8 @@ def get_candidates():
     except Exception as e:
         print("Error fetching candidates:", str(e))
         return jsonify({"error": str(e)}), 500
+
+
 
 @app.route('/send-message', methods=['POST'])
 def send_message():
@@ -983,6 +995,61 @@ def get_responses():
     except Exception as e:
         print("Error fetching responses:", str(e))
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/candidate-responses', methods=['POST'])
+def get_candidate_responses():
+    try:
+        data = request.json
+        candidateId = data.get('candidateId')
+
+        if not candidateId:
+            return jsonify({"error": "Failed to fetch candidate response"}), 400
+        
+        conn = pyodbc.connect(connection_string)
+        cursor = conn.cursor()
+
+        # Fetch all responses from the database
+        cursor.execute("SELECT CandidateID, Name, Mobile, JobDescription, Response, Location, Salary, ExpectedCTC, NoticePeriod, ResponseDate, CASE WHEN ResumeFileData IS NOT NULL THEN 'Yes' ELSE 'No' END as ResumeUploaded FROM Responses WHERE CandidateID = ?",
+            (candidateId)
+        )
+        responses = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
+
+        print("Fetched responses:", responses)  # Debugging log
+        return jsonify(responses), 200
+    except Exception as e:
+        print("Error fetching responses:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/candidate-id', methods=['POST'])
+def get_candidate_id():
+    try:
+        data = request.json
+        userId = data.get('userId')
+        shortlistId = data.get('shortlistId')
+
+        if not shortlistId:
+            return jsonify({"error": "Failed to fetch candidate Id"}), 400
+        
+        if not userId:
+            return jsonify({"error": "Failed to fetch candidate Id"}), 400
+        
+        conn = pyodbc.connect(connection_string)
+        cursor = conn.cursor()
+
+        # Fetch all responses from the database
+        cursor.execute("SELECT CandidateID FROM Candidates WHERE ShortlistID = ? AND UserID = ?",
+            (shortlistId, userId)
+        )
+        responses = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
+
+        print("Fetched responses:", responses)  # Debugging log
+        return jsonify(responses), 200
+    except Exception as e:
+        print("Error fetching responses:", str(e))
+        return jsonify({"error": str(e)}), 500
+
 
 def send_location_question(candidate_id, name, mobile):
     """
