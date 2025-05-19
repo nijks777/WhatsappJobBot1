@@ -371,10 +371,9 @@ def send_individual_message():
         else:
             return jsonify({"error": "Error: No candidate exist."}), 400
         
-        # Prepare the WhatsApp API request with job opportunity message
         message = {
             "messaging_product": "whatsapp",
-            "to": f"{mobile}",
+            "to": `${mobile}`,
             "type": "interactive",
             "interactive": {
                 "type": "button",
@@ -383,23 +382,19 @@ def send_individual_message():
                     "text": "Company Ltd. - Job Opportunity"
                 },
                 "body": {
-                    "text": f"Dear {name},\n\n" + 
+                    "text": `Dear ${name},\n\n` + 
                     "Greetings from Tech Mahindra Ltd.!\n\n" +
-                    f"I am from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our {job_desc} job opening.\n\n" +
-                    f"Job Description – {job_desc}\n" +
+                    `I am from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our ${job_desc} job opening.\n\n` +
+                    `Job Description – ${job_desc}\n` +
                     ". Collect, clean, and organize large datasets to ensure accuracy and consistency.\n" +
                     ". Analyze data to identify trends, patterns, and actionable insights to support decision-making.\n" +
-                    ". Create interactive dashboards and reports using tools such as Power BI, Tableau, or Excel.\n" +
-                    ". Write and optimize SQL queries for data extraction and manipulation.\n" +
-                    ". Collaborate with cross-functional teams to understand business needs and deliver solutions.\n" +
-                    ". Present findings through clear visualizations and presentations tailored for stakeholders.\n" +
-                    ". Stay updated on industry trends, data analysis tools, and techniques to drive performance improvements.\n\n" +
+                    ". Create interactive dashboards and reports using tools such as Power BI, Tableau, or Excel.\n\n" +
                     "If you are interested in this opportunity, please press \"Yes\" to proceed further."
                 },
                 "action": {
                     "buttons": [
-                        {"type": "reply", "reply": {"id": f"yes_{candidate_id}", "title": "Yes"}},
-                        {"type": "reply", "reply": {"id": f"no_{candidate_id}", "title": "No"}}
+                        {"type": "reply", "reply": {"id": `yes_${candidate_id}`, "title": "Yes"}},
+                        {"type": "reply", "reply": {"id": `no_${candidate_id}`, "title": "No"}}
                     ]
                 }
             }
