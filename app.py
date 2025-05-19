@@ -1010,7 +1010,7 @@ def get_candidate_responses():
         cursor = conn.cursor()
 
         # Fetch all responses from the database
-        cursor.execute("SELECT CandidateID, Name, Mobile, JobDescription, Response, Location, Salary, ExpectedCTC, NoticePeriod, ResponseDate, CASE WHEN ResumeFileData IS NOT NULL THEN 'Yes' ELSE 'No' END as ResumeUploaded FROM Responses WHERE CandidateID = ?",
+        cursor.execute("SELECT * FROM Responses WHERE CandidateID = ?",
             (candidateId)
         )
         responses = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
