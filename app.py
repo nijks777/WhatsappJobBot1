@@ -382,10 +382,10 @@ def send_individual_message():
                     "text": "Company Ltd. - Job Opportunity"
                 },
                 "body": {
-                    "text": `Dear ${name},\n\n` + 
+                    "text": f"Dear {name},\n\n" + 
                     "Greetings from Tech Mahindra Ltd.!\n\n" +
-                    `I am from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our ${job_desc} job opening.\n\n` +
-                    `Job Description – ${job_desc}\n` +
+                    f"I am from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our {job_desc} job opening.\n\n" +
+                    f"Job Description – {job_desc}\n" +
                     ". Collect, clean, and organize large datasets to ensure accuracy and consistency.\n" +
                     ". Analyze data to identify trends, patterns, and actionable insights to support decision-making.\n" +
                     ". Create interactive dashboards and reports using tools such as Power BI, Tableau, or Excel.\n\n" +
@@ -393,13 +393,12 @@ def send_individual_message():
                 },
                 "action": {
                     "buttons": [
-                        {"type": "reply", "reply": {"id": `yes_${candidate_id}`, "title": "Yes"}},
-                        {"type": "reply", "reply": {"id": `no_${candidate_id}`, "title": "No"}}
+                        {"type": "reply", "reply": {"id": f"yes_{candidate_id}", "title": "Yes"}},
+                        {"type": "reply", "reply": {"id": f"no_{candidate_id}", "title": "No"}}
                     ]
                 }
             }
         }
-
         # Send message via WhatsApp API
         headers = {"Authorization": f"Bearer {access_token}"}
         response = requests.post(whatsapp_api_url, json=message, headers=headers)
