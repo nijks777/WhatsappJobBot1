@@ -373,7 +373,7 @@ def send_individual_message():
         
         message = {
             "messaging_product": "whatsapp",
-            "to": `${mobile}`,
+            "to": f"{mobile}",
             "type": "interactive",
             "interactive": {
                 "type": "button",
