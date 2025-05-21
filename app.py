@@ -637,7 +637,9 @@ def webhook():
                                             finally:
                                                 cursor.close()
                                                 conn.close()
-                               else:
+                                else:  
+                                    conn = pyodbc.connect(connection_string)
+                                    cursor = conn.cursor()
                                     cursor.execute("""
                                         SELECT TOP 1 CandidateID, Name, Mobile
                                         FROM Responses
