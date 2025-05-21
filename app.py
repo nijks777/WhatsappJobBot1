@@ -75,24 +75,24 @@ def add_candidate():
         job_description = data.get('jobDescription')
         shortlistId = data.get('shortlistId')
         userId = data.get('userId')
-        
+       
         if not name or not mobile:
             return jsonify({"error": "Name and mobile are required"}), 400
-            
+           
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
-        
+       
         # Check if a candidate with this mobile number already exists
         cursor.execute(
             "SELECT CandidateID FROM Candidates WHERE Mobile = ? AND ShortlistID = ? AND UserID = ?",
             (mobile, shortlistId, userId)
         )
         existing_candidate = cursor.fetchone()
-        
+       
         if existing_candidate:
             # Update the existing candidate
             cursor.execute("""
-                UPDATE Candidates 
+                UPDATE Candidates
                 SET Name = ?, JobDescription = ?
                 WHERE Mobile = ?
             """, (name, job_description, mobile))
@@ -108,14 +108,14 @@ def add_candidate():
             cursor.execute("SELECT @@IDENTITY")
             candidate_id = cursor.fetchone()[0]
             status_message = "Candidate added successfully"
-            
+           
         conn.commit()
-        
+       
         return jsonify({
             "status": status_message,
             "candidateId": candidate_id
         }), 200
-        
+       
     except Exception as e:
         print(f"Error adding candidate: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -148,7 +148,24 @@ def send_resume_request(candidate_id, name, mobile):
         "to": f"{mobile}",
         "type": "text",
         "text": {
-            "body": f"Hi {name}, We need one last thing from you. Please share your Updated resume.If already done You can leave it."
+            "body": f"Hi {name}, We need one last thing from you. Please share your Updated resume in pdf or docx format.If already done You can leave it."
+        }
+    }
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.post(whatsapp_api_url, json=message, headers=headers)
+    return response.status_code == 200
+
+def send_alert_message(candidate_id, name, mobile):
+    """
+    Send resume upload request via WhatsApp
+    """
+    message = {
+        "messaging_product": "whatsapp",
+        "to": f"{mobile}",
+        "type": "text",
+        "text": {
+            "body": f"Please share your resume in pdf or docx format."
         }
     }
 
@@ -164,54 +181,54 @@ def upload_resume():
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
-        
+       
         file = request.files['file']
         candidate_id = request.form.get('candidate_id')
-        
+       
         if not candidate_id:
             return jsonify({"error": "Candidate ID is required"}), 400
-        
+       
         # Check file extension
         allowed_extensions = ['.pdf', '.doc', '.docx']
         file_ext = os.path.splitext(file.filename)[1].lower()
-        
+       
         if file_ext not in allowed_extensions:
             return jsonify({"error": "Only PDF, DOC, and DOCX files are allowed"}), 400
-        
+       
         # Read file content
         file_content = file.read()
-        
+       
         # Connect to database
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
-        
+       
         try:
             # Update responses table with resume
             cursor.execute("""
-                UPDATE Responses 
-                SET ResumeFileName = ?, 
-                    ResumeFileData = ?, 
+                UPDATE Responses
+                SET ResumeFileName = ?,
+                    ResumeFileData = ?,
                     ResumeFileType = ?,
-                    ResumeUploadDate = ? 
+                    ResumeUploadDate = ?
                 WHERE CandidateID = ?
             """, (
-                file.filename, 
-                file_content, 
+                file.filename,
+                file_content,
                 file_ext,  # Store file type
-                datetime.now(), 
+                datetime.now(),
                 candidate_id
             ))
             conn.commit()
-            
+           
             return jsonify({"message": "Resume uploaded successfully"}), 200
-        
+       
         except Exception as db_error:
             conn.rollback()
             return jsonify({"error": str(db_error)}), 500
         finally:
             cursor.close()
             conn.close()
-    
+   
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -223,15 +240,15 @@ def get_resume(candidate_id):
     try:
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
-        
+       
         cursor.execute("""
-            SELECT ResumeFileName, ResumeFileData, ResumeFileType 
-            FROM Responses 
+            SELECT ResumeFileName, ResumeFileData, ResumeFileType
+            FROM Responses
             WHERE CandidateID = ?
         """, (candidate_id,))
-        
+       
         result = cursor.fetchone()
-        
+       
         if result and result.ResumeFileData:
             # Determine mime type based on file extension
             file_ext = os.path.splitext(result.ResumeFileName)[1].lower()
@@ -240,22 +257,22 @@ def get_resume(candidate_id):
                 '.doc': 'application/msword',
                 '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             }
-            
+           
             # Fallback to stored ResumeFileType if available
             if result.ResumeFileType:
                 file_ext = result.ResumeFileType.lower()
-            
+           
             mime_type = mime_types.get(file_ext, 'application/octet-stream')
-            
+           
             # Create a response with the file content
             response = make_response(result.ResumeFileData)
             response.headers['Content-Disposition'] = f'attachment; filename={result.ResumeFileName}'
             response.headers['Content-Type'] = mime_type
-            
+           
             return response
         else:
             return jsonify({"error": "Resume not found"}), 404
-    
+   
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -352,10 +369,10 @@ def send_individual_message():
         mobile = data.get('mobile')
         userId = data.get('userId')
         shortlistId = data.get('shortlistId')
-        
+       
         if not mobile:
             return jsonify({"error": "Mobile number is required"}), 400
-            
+           
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
 
@@ -370,7 +387,7 @@ def send_individual_message():
             candidate_id, name, mobile, job_desc = candidate
         else:
             return jsonify({"error": "Error: No candidate exist."}), 400
-        
+       
         message = {
             "messaging_product": "whatsapp",
             "to": f"{mobile}",
@@ -379,12 +396,12 @@ def send_individual_message():
                 "type": "button",
                 "header": {
                     "type": "text",
-                    "text": "Company Ltd. - Job Opportunity"
+                    "text": "XYZ Ltd. - Job Opportunity"
                 },
                 "body": {
-                    "text": f"Dear {name},\n\n" + 
-                    "Greetings from Tech Mahindra Ltd.!\n\n" +
-                    f"I am from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our {job_desc} job opening.\n\n" +
+                    "text": f"Dear {name},\n\n" +
+                    "Greetings from XYZ Ltd.!\n\n" +
+                    f"I am from the RMG Group at XYZ. We have reviewed your profile and are excited to share that your qualifications align with our {job_desc} job opening.\n\n" +
                     f"Job Description – {job_desc}\n" +
                     ". Collect, clean, and organize large datasets to ensure accuracy and consistency.\n" +
                     ". Analyze data to identify trends, patterns, and actionable insights to support decision-making.\n" +
@@ -421,29 +438,29 @@ def get_candidates():
 
         # Fetch all candidates from the database with message sent status
         cursor.execute("""
-            SELECT 
-                c.CandidateID, 
-                c.Name, 
+            SELECT
+                c.CandidateID,
+                c.Name,
                 c.Mobile,
                 c.ShortlistId,
                 c.UserId,
-                CASE 
-                    WHEN r.ResponseDate IS NOT NULL THEN 1 
-                    ELSE 0 
+                CASE
+                    WHEN r.ResponseDate IS NOT NULL THEN 1
+                    ELSE 0
                 END as MessageSent
             FROM Candidates c
             LEFT JOIN Responses r ON c.CandidateID = r.CandidateID
         """)
-        
+       
         candidates = [
             {
-                "CandidateID": row.CandidateID, 
-                "Name": row.Name, 
+                "CandidateID": row.CandidateID,
+                "Name": row.Name,
                 "Mobile": row.Mobile,
                 "ShortlistId": row.ShortlistId,
                 "UserId": row.UserId,
                 "MessageSent": bool(row.MessageSent)
-            } 
+            }
             for row in cursor.fetchall()
         ]
 
@@ -480,22 +497,17 @@ def send_message():
                     "type": "button",
                     "header": {
                         "type": "text",
-                        "text": "Tech Mahindra Ltd. - Job Opportunity"
+                        "text": "XYZ Ltd. - Job Opportunity"
                     },
                     "body": {
-                        "text": f"Dear {name},\n\n" + 
-                        "Greetings from Tech Mahindra Ltd.!\n\n" +
-                        "I am Swati from the RMG Group at Tech Mahindra. We have reviewed your profile and are excited to share that your qualifications align with our Data Analyst job opening.\n\n" +
-                        "Job Description – Data Analyst\n" +
+                        "text": f"Dear {name},\n\n" +
+                        "Greetings from XYZ Ltd.!\n\n" +
+                        f"I am from the RMG Group at XYZ. We have reviewed your profile and are excited to share that your qualifications align with our {job_desc} job opening.\n\n" +
+                        f"Job Description – {job_desc}\n" +
                         ". Collect, clean, and organize large datasets to ensure accuracy and consistency.\n" +
                         ". Analyze data to identify trends, patterns, and actionable insights to support decision-making.\n" +
-                        ". Create interactive dashboards and reports using tools such as Power BI, Tableau, or Excel.\n" +
-                        ". Write and optimize SQL queries for data extraction and manipulation.\n" +
-                        ". Collaborate with cross-functional teams to understand business needs and deliver solutions.\n" +
-                        ". Present findings through clear visualizations and presentations tailored for stakeholders.\n" +
-                        ". Stay updated on industry trends, data analysis tools, and techniques to drive performance improvements.\n\n" +
+                        ". Create interactive dashboards and reports using tools such as Power BI, Tableau, or Excel.\n\n" +
                         "If you are interested in this opportunity, please press \"Yes\" to proceed further."
-
                     },
                     "action": {
                         "buttons": [
@@ -547,7 +559,7 @@ def webhook():
                     change = entry["changes"][0]
                     if "value" in change and "messages" in change["value"]:
                         messages = change["value"]["messages"]
-                        
+                       
                         for message in messages:
                             # Handle document uploads
                             # Handle document uploads
@@ -565,53 +577,53 @@ def webhook():
                                     # Download the document
                                     media_id = message.get("document", {}).get("id")
                                     download_url = f"https://graph.facebook.com/v21.0/{media_id}"
-                                    
+                                   
                                     headers = {
                                         "Authorization": f"Bearer {access_token}"
                                     }
-                                    
+                                   
                                     media_response = requests.get(download_url, headers=headers)
-                                    
+                                   
                                     if media_response.status_code == 200:
                                         media_url = media_response.json().get("url")
-                                        
+                                       
                                         # Download the actual file
                                         file_response = requests.get(media_url, headers=headers)
-                                        
+                                       
                                         if file_response.status_code == 200:
                                             file_content = file_response.content
-                                            
+                                           
                                             # Connect to database to find the candidate
                                             conn = pyodbc.connect(connection_string)
                                             cursor = conn.cursor()
-                                            
+                                           
                                             try:
                                                 # Find the most recent candidate who needs a resume upload
                                                 cursor.execute("""
-                                                    SELECT TOP 1 CandidateID, Name, Mobile 
-                                                    FROM Responses 
+                                                    SELECT TOP 1 CandidateID, Name, Mobile
+                                                    FROM Responses
                                                     WHERE Response = 'Yes'  -- Ensure the candidate has shown interest
                                                     ORDER BY ResponseDate DESC
                                                 """)
-                                                
+                                               
                                                 candidate = cursor.fetchone()
-                                                
+                                               
                                                 if candidate:
                                                     # Update the response with resume
                                                     cursor.execute("""
-                                                        UPDATE Responses 
-                                                        SET ResumeFileName = ?, 
-                                                            ResumeFileData = ?, 
-                                                            ResumeUploadDate = ? 
+                                                        UPDATE Responses
+                                                        SET ResumeFileName = ?,
+                                                            ResumeFileData = ?,
+                                                            ResumeUploadDate = ?
                                                         WHERE CandidateID = ?
                                                     """, (
-                                                        file_name, 
-                                                        file_content, 
-                                                        datetime.now(), 
+                                                        file_name,
+                                                        file_content,
+                                                        datetime.now(),
                                                         candidate.CandidateID
                                                     ))
                                                     conn.commit()
-                                                    
+                                                   
                                                     print(f"Resume uploaded for candidate {candidate.CandidateID}")
                                                     # Send thank you message after resume upload
                                                     if send_thank_you_message(candidate.CandidateID, candidate.Name, candidate.Mobile):
@@ -625,6 +637,13 @@ def webhook():
                                             finally:
                                                 cursor.close()
                                                 conn.close()
+                                else:
+                                    print(f"Resume uploaded for candidate {candidate.CandidateID}")
+                                    # Send thank you message after resume upload
+                                    if send_alert_message(candidate.CandidateID, candidate.Name, candidate.Mobile):
+                                        print(f"Sent alert message to candidate {candidate.CandidateID}")
+                                    else:
+                                        print(f"Failed to send alert message to candidate {candidate.CandidateID}")
 
                         for message in messages:
                             # Handle button reply responses
@@ -632,12 +651,12 @@ def webhook():
                                 button_reply = message["interactive"]["button_reply"]
                                 response_id = button_reply["id"]
                                 response_text = button_reply["title"]
-                                
+                               
                                 # Get the sender's phone number
                                 sender_phone = None
                                 if "from" in message:
                                     sender_phone = message["from"]
-                                
+                               
                                 # Initial job interest response (Yes/No)
                                 if response_id.startswith("yes_"):
                                     try:
@@ -654,27 +673,27 @@ def webhook():
                                     try:
                                         # First, get candidate details
                                         cursor.execute("""
-                                            SELECT Name, Mobile, JobDescription 
-                                            FROM Candidates 
+                                            SELECT Name, Mobile, JobDescription
+                                            FROM Candidates
                                             WHERE CandidateID = ?
                                         """, (candidate_id,))
-                                        
+                                       
                                         candidate = cursor.fetchone()
-                                        
+                                       
                                         if candidate:
                                             # Check if response already exists for this candidate
                                             cursor.execute("""
-                                                SELECT ResponseID 
-                                                FROM Responses 
+                                                SELECT ResponseID
+                                                FROM Responses
                                                 WHERE CandidateID = ?
                                             """, (candidate_id,))
-                                            
+                                           
                                             existing_response = cursor.fetchone()
-                                            
+                                           
                                             if existing_response:
                                                 # Update existing response
                                                 cursor.execute("""
-                                                    UPDATE Responses 
+                                                    UPDATE Responses
                                                     SET Response = ?, ResponseDate = ?
                                                     WHERE ResponseID = ?
                                                 """, (
@@ -685,7 +704,7 @@ def webhook():
                                             else:
                                                 # Insert a new response only if one doesn't exist
                                                 cursor.execute("""
-                                                    INSERT INTO Responses 
+                                                    INSERT INTO Responses
                                                     (CandidateID, Name, Mobile, JobDescription, Response, ResponseDate)
                                                     VALUES (?, ?, ?, ?, ?, ?)
                                                 """, (
@@ -697,7 +716,7 @@ def webhook():
                                                     datetime.now()
                                                 ))
                                             conn.commit()
-                                            
+                                           
                                             # Send location question
                                             if send_location_question(candidate_id, candidate.Name, candidate.Mobile):
                                                 print(f"Successfully recorded response and sent location question for candidate {candidate_id}")
@@ -705,14 +724,14 @@ def webhook():
                                                 print(f"Failed to send location question for candidate {candidate_id}")
                                         else:
                                             print(f"No candidate found with ID {candidate_id}")
-                                    
+                                   
                                     except Exception as db_error:
                                         print(f"Database error: {str(db_error)}")
                                         conn.rollback()
                                     finally:
                                         cursor.close()
                                         conn.close()
-                                
+                               
                                 # In the webhook method, expand the edit response handling
                                 # Edit response handling
                                 elif response_id.startswith("edit_"):
@@ -734,13 +753,13 @@ def webhook():
                                     try:
                                         # Fetch candidate details
                                         cursor.execute("""
-                                            SELECT Name, Mobile 
-                                            FROM Responses 
+                                            SELECT Name, Mobile
+                                            FROM Responses
                                             WHERE CandidateID = ?
                                         """, (candidate_id,))
-                                        
+                                       
                                         candidate = cursor.fetchone()
-                                        
+                                       
                                         if candidate:
                                             # Comprehensive edit options
                                             if edit_field == 'all':
@@ -759,7 +778,7 @@ def webhook():
                                                     edit_function = edit_functions[edit_field]
                                                     if edit_function(candidate_id, candidate.Name, candidate.Mobile):
                                                         print(f"Sent {edit_field} edit question for candidate {candidate_id}")
-                                    
+                                   
                                     except Exception as db_error:
                                         print(f"Database error: {str(db_error)}")
                                     finally:
@@ -791,23 +810,23 @@ def webhook():
                                             candidate_id
                                         ))
                                         conn.commit()
-                                        
+                                       
                                         # Fetch candidate info for sending next question
                                         cursor.execute("""
-                                            SELECT Name, Mobile 
-                                            FROM Responses 
+                                            SELECT Name, Mobile
+                                            FROM Responses
                                             WHERE CandidateID = ?
                                         """, (candidate_id,))
-                                        
+                                       
                                         candidate = cursor.fetchone()
-                                        
+                                       
                                         if candidate:
                                             # Send salary question
                                             if send_salary_question(candidate_id, candidate.Name, candidate.Mobile):
                                                 print(f"Successfully updated location and sent salary question for candidate {candidate_id}")
                                             else:
                                                 print(f"Failed to send salary question for candidate {candidate_id}")
-                                    
+                                   
                                     except Exception as db_error:
                                         print(f"Database error: {str(db_error)}")
                                         conn.rollback()
@@ -840,23 +859,23 @@ def webhook():
                                             candidate_id
                                         ))
                                         conn.commit()
-                                        
+                                       
                                         # Fetch candidate info for sending next question
                                         cursor.execute("""
-                                            SELECT Name, Mobile 
-                                            FROM Responses 
+                                            SELECT Name, Mobile
+                                            FROM Responses
                                             WHERE CandidateID = ?
                                         """, (candidate_id,))
-                                        
+                                       
                                         candidate = cursor.fetchone()
-                                        
+                                       
                                         if candidate:
                                             # Send expected CTC question
                                             if send_expected_ctc_question(candidate_id, candidate.Name, candidate.Mobile):
                                                 print(f"Successfully updated salary and sent expected CTC question for candidate {candidate_id}")
                                             else:
                                                 print(f"Failed to send expected CTC question for candidate {candidate_id}")
-                                    
+                                   
                                     except Exception as db_error:
                                         print(f"Database error: {str(db_error)}")
                                         conn.rollback()
@@ -889,23 +908,23 @@ def webhook():
                                             candidate_id
                                         ))
                                         conn.commit()
-                                        
+                                       
                                         # Fetch candidate info for sending next question
                                         cursor.execute("""
-                                            SELECT Name, Mobile 
-                                            FROM Responses 
+                                            SELECT Name, Mobile
+                                            FROM Responses
                                             WHERE CandidateID = ?
                                         """, (candidate_id,))
-                                        
+                                       
                                         candidate = cursor.fetchone()
-                                        
+                                       
                                         if candidate:
                                             # Send Notice Period question
                                             if send_notice_period_question(candidate_id, candidate.Name, candidate.Mobile):
                                                 print(f"Successfully updated expected CTC and sent Notice Period question for candidate {candidate_id}")
                                             else:
                                                 print(f"Failed to send Notice Period question for candidate {candidate_id}")
-                                    
+                                   
                                     except Exception as db_error:
                                         print(f"Database error: {str(db_error)}")
                                         conn.rollback()
@@ -937,30 +956,30 @@ def webhook():
                                             candidate_id
                                         ))
                                         conn.commit()
-                                        
+                                       
                                         # Fetch candidate details to send resume request
                                         cursor.execute("""
-                                            SELECT Name, Mobile 
-                                            FROM Responses 
+                                            SELECT Name, Mobile
+                                            FROM Responses
                                             WHERE CandidateID = ?
                                         """, (candidate_id,))
-                                        
+                                       
                                         candidate = cursor.fetchone()
-                                        
+                                       
                                         if candidate:
                                             # Send resume request
                                             if send_resume_request(candidate_id, candidate.Name, candidate.Mobile):
                                                 print(f"Successfully updated Notice Period and sent resume request for candidate {candidate_id}")
                                             else:
                                                 print(f"Failed to send resume request for candidate {candidate_id}")
-                                    
+                                   
                                     except Exception as db_error:
                                         print(f"Database error: {str(db_error)}")
                                         conn.rollback()
                                     finally:
                                         cursor.close()
                                         conn.close()
-                                    
+                                   
 
             return jsonify({"status": "Webhook processed successfully"}), 200
 
@@ -976,11 +995,22 @@ def get_responses():
 
         # Fetch all responses from the database
         cursor.execute("""
-            SELECT 
-                CandidateID, Name, Mobile, JobDescription, 
-                Response, Location, Salary, ExpectedCTC, NoticePeriod,ResponseDate,
-                CASE WHEN ResumeFileData IS NOT NULL THEN 'Yes' ELSE 'No' END as ResumeUploaded
-            FROM Responses
+            SELECT
+                r.CandidateID,
+                r.Name,
+                r.Mobile,
+                r.JobDescription,
+                r.Response,
+                r.Location,
+                r.Salary,
+                r.ExpectedCTC,
+                r.NoticePeriod,
+                r.ResponseDate,
+                CASE WHEN r.ResumeFileData IS NOT NULL THEN 'Yes' ELSE 'No' END as ResumeUploaded,
+                c.ShortlistId,
+                c.UserId
+            FROM Responses r
+            INNER JOIN Candidates c ON r.CandidateID = c.CandidateID
         """)
         responses = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
 
@@ -999,7 +1029,7 @@ def get_candidate_responses():
 
         if not candidateId:
             return jsonify({"error": "Failed to fetch candidate response"}), 400
-        
+       
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
 
@@ -1025,10 +1055,10 @@ def get_candidate_id():
 
         if not shortlistId:
             return jsonify({"error": "Failed to fetch candidate Id"}), 400
-        
+       
         if not userId:
             return jsonify({"error": "Failed to fetch candidate Id"}), 400
-        
+       
         conn = pyodbc.connect(connection_string)
         cursor = conn.cursor()
 
