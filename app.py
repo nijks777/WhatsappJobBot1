@@ -637,13 +637,22 @@ def webhook():
                                             finally:
                                                 cursor.close()
                                                 conn.close()
-                                else:
-                                    print(f"Resume uploaded for candidate {candidate.CandidateID}")
-                                    # Send thank you message after resume upload
-                                    if send_alert_message(candidate.CandidateID, candidate.Name, candidate.Mobile):
-                                        print(f"Sent alert message to candidate {candidate.CandidateID}")
-                                    else:
-                                        print(f"Failed to send alert message to candidate {candidate.CandidateID}")
+                               else:
+                                    cursor.execute("""
+                                        SELECT TOP 1 CandidateID, Name, Mobile
+                                        FROM Responses
+                                        WHERE Response = 'Yes'  -- Ensure the candidate has shown interest
+                                        ORDER BY ResponseDate DESC
+                                    """)
+                                    
+                                    candidate = cursor.fetchone()
+                                    if candidate:
+                                        print(f"Resume uploaded for candidate {candidate.CandidateID}")
+                                        # Send thank you message after resume upload
+                                        if send_alert_message(candidate.CandidateID, candidate.Name, candidate.Mobile):
+                                            print(f"Sent alert message to candidate {candidate.CandidateID}")
+                                        else:
+                                            print(f"Failed to send alert message to candidate {candidate.CandidateID}")
 
                         for message in messages:
                             # Handle button reply responses
